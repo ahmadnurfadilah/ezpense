@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@progress/kendo-react-layout';
 import { Button } from '@progress/kendo-react-buttons';
 import { Badge } from '@progress/kendo-react-indicators';
-import { ProgressBar } from '@progress/kendo-react-progressbars';
 import { DropDownList } from '@progress/kendo-react-dropdowns';
 import { Notification } from '@progress/kendo-react-notification';
 import { getExpenses, getCategories, type Expense, type Category } from '../lib/database';
 import { usePendingExpenses } from '../hooks/usePendingExpenses';
 
 export function Dashboard() {
+  const router = useRouter();
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -52,9 +53,46 @@ export function Dashboard() {
     return category?.name || 'Uncategorized';
   };
 
-  // Aggregate totals
-  const totalSpent = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const categoryTotals = expenses.reduce<Record<string, number>>((acc, e) => {
+  // Period helpers
+  const getDateRangeForPeriod = (period: string) => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    let start = new Date(end);
+
+    if (period === 'This Week') {
+      const day = end.getDay(); // 0 (Sun) - 6 (Sat)
+      const diffToMonday = (day + 6) % 7; // days since Monday
+      start = new Date(end);
+      start.setDate(end.getDate() - diffToMonday);
+      start.setHours(0, 0, 0, 0);
+    } else if (period === 'This Month') {
+      start = new Date(end.getFullYear(), end.getMonth(), 1, 0, 0, 0, 0);
+    } else if (period === 'Last Month') {
+      const month = end.getMonth() - 1;
+      const year = month < 0 ? end.getFullYear() - 1 : end.getFullYear();
+      const realMonth = (month + 12) % 12;
+      start = new Date(year, realMonth, 1, 0, 0, 0, 0);
+      // last day of last month
+      const lastDay = new Date(year, realMonth + 1, 0);
+      end.setFullYear(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate());
+      end.setHours(23, 59, 59, 999);
+    } else if (period === 'This Year') {
+      start = new Date(end.getFullYear(), 0, 1, 0, 0, 0, 0);
+    }
+
+    return { start, end };
+  };
+
+  // Filter by selected period
+  const { start, end } = getDateRangeForPeriod(selectedPeriod);
+  const filteredExpenses = expenses.filter((e) => {
+    const d = new Date(e.date);
+    return d >= start && d <= end;
+  });
+
+  // Aggregate totals (filtered)
+  const totalSpent = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const categoryTotals = filteredExpenses.reduce<Record<string, number>>((acc, e) => {
     const name = getCategoryName(e.category_id);
     acc[name] = (acc[name] || 0) + (e.amount || 0);
     return acc;
@@ -92,12 +130,13 @@ export function Dashboard() {
             <DropDownList
               data={periodOptions}
               value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
+              onChange={(e) => setSelectedPeriod(e.value as string)}
               className="w-44 rounded-lg"
             />
             <Button
               themeColor="primary"
               className="px-5 py-2 rounded-lg bg-white text-indigo-700 hover:bg-white/90 shadow-md"
+              onClick={() => router.push('/upload')}
             >
               📤 Upload Receipt
             </Button>
@@ -177,12 +216,12 @@ export function Dashboard() {
       <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Recent Expenses</h3>
-          <Button fillMode="outline" size="small" className="hover:shadow-sm">
+          <Button fillMode="outline" size="small" className="hover:shadow-sm" onClick={() => router.push('/expenses')}>
             View All
           </Button>
         </div>
         <div className="space-y-3">
-          {expenses.slice(0, 5).map((expense) => (
+          {filteredExpenses.slice(0, 5).map((expense) => (
             <div key={expense.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shadow-inner">
@@ -248,24 +287,28 @@ export function Dashboard() {
             <Button
               themeColor="primary"
               className="w-full justify-start rounded-xl shadow-sm hover:shadow transition-shadow"
+              onClick={() => router.push('/upload')}
             >
               📤 Upload New Receipt
             </Button>
             <Button
               fillMode="outline"
               className="w-full justify-start rounded-xl hover:bg-gray-50"
+              onClick={() => router.push('/review')}
             >
               ✏️ Review Pending ({pendingCount})
             </Button>
             <Button
               fillMode="outline"
               className="w-full justify-start rounded-xl hover:bg-gray-50"
+              onClick={() => router.push('/expenses')}
             >
               📊 View Detailed Reports
             </Button>
             <Button
               fillMode="outline"
               className="w-full justify-start rounded-xl hover:bg-gray-50"
+              onClick={() => router.push('/settings')}
             >
               ⚙️ Manage Categories
             </Button>

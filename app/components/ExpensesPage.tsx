@@ -362,7 +362,7 @@ export function ExpensesPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <div className="mt-1">
+                  <div className="mt-1 relative">
                     {getStatusBadge(selectedExpense.status)}
                   </div>
                 </div>
