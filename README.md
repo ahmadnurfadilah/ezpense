@@ -40,13 +40,29 @@ An AI-powered expense manager with receipt scanning built with Next.js and Kendo
    npm install
    ```
 
-2. **Run the development server**:
+2. **Set up Supabase**:
+   - Create a Supabase project at [supabase.com](https://supabase.com)
+   - Copy your project credentials to `.env.local` (see [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md))
+   - Enable anonymous authentication in your Supabase dashboard
+   - Run database migrations: `npm run db:push`
+
+3. **Run the development server**:
    ```bash
    npm run dev
    ```
 
-3. **Open your browser**:
+4. **Open your browser**:
    Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 🔧 Supabase Setup
+
+This app uses Supabase for:
+- **Anonymous Authentication**: Users can start using the app immediately without registration
+- **Database**: PostgreSQL with Row Level Security for data isolation
+- **Storage**: Secure file storage for receipt images
+- **Real-time**: Live updates and notifications
+
+See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed setup instructions.
 
 ## 📱 Pages
 
