@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@progress/kendo-react-buttons';
 import { Badge } from '@progress/kendo-react-indicators';
 import { useAuth } from '../contexts/AuthContext';
+import { usePendingExpenses } from '../hooks/usePendingExpenses';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: '📊' },
@@ -18,7 +19,7 @@ const navigation = [
 export function Navigation() {
   const pathname = usePathname();
   const { user, loading, signInAnonymously, signOut, isAnonymous } = useAuth();
-  const [pendingCount] = useState(3); // Mock data for pending receipts
+  const { pendingCount } = usePendingExpenses();
 
   // Auto-sign in anonymously if no user
   useEffect(() => {

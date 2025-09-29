@@ -187,20 +187,15 @@ export function UploadPage() {
     const completedFiles = uploadedFiles.filter(file => file.status === 'completed');
     if (completedFiles.length > 0) {
       addNotification('success', `${completedFiles.length} receipts ready for review!`);
-      // In a real app, this would navigate to the review page
+      // Navigate to the review page
+      window.location.href = '/review';
     }
   };
 
   const reviewReceipt = (file: UploadedFile) => {
     if (file.extractedData && file.expenseId) {
-      // For now, show the extracted data in a notification
-      // In a real app, this would navigate to a detailed review page
-      const data = file.extractedData;
-      const message = `Review: ${data.store} - $${data.total} on ${data.date} (${data.items.length} items)`;
-      addNotification('success', message);
-
-      // You could also navigate to a review page here:
-      // router.push(`/review/${file.expenseId}`);
+      // Navigate to the review page
+      window.location.href = '/review';
     }
   };
 
