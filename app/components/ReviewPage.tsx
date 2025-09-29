@@ -336,8 +336,8 @@ export function ReviewPage() {
                           Date
                         </label>
                         <DatePicker
-                          value={new Date(selectedExpense.date)}
-                          onChange={(e) => handleEditChange('date', e.target.value?.toISOString())}
+                          value={new Date((edits.date as unknown as string | Date) ?? selectedExpense.date)}
+                          onChange={(e) => handleEditChange('date', e.value ? (e.value as Date).toISOString() : undefined)}
                           className="w-full"
                         />
                       </div>
@@ -351,12 +351,10 @@ export function ReviewPage() {
                           data={getCategoryOptions()}
                           textField="name"
                           dataItemKey="id"
-                          value={edits.category_id ?? selectedExpense.category_id}
+                          value={getCategoryOptions().find(c => c.id === (edits.category_id ?? selectedExpense.category_id)) ?? null}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            // Handle both cases: when value is an object or just the ID string
-                            const categoryId = typeof value === 'object' && value !== null ? value.id : value;
-                            handleEditChange('category_id', categoryId);
+                            const selected = e.value as { id: string } | null;
+                            handleEditChange('category_id', selected ? selected.id : undefined);
                           }}
                           className="w-full"
                         />
@@ -419,7 +417,7 @@ export function ReviewPage() {
 
       {/* Confirmation Dialog */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Receipt</h3>
             <p className="text-gray-700 mb-6">
