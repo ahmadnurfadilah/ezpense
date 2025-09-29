@@ -13,13 +13,18 @@ interface UploadedFile {
   preview: string;
   status: 'uploading' | 'processing' | 'completed' | 'error';
   progress: number;
+  receiptId?: string;
+  publicUrl?: string;
   extractedData?: {
-    amount: number;
-    vendor: string;
+    store: string;
     date: string;
-    category: string;
-    confidence: number;
+    items: Array<{ name: string; quantity: number; price: number; total: number }>;
+    subtotal: number;
+    discount: number | null;
+    tax: number | null;
+    total: number;
   };
+  expenseId?: string;
 }
 
 export function UploadPage() {
@@ -27,13 +32,13 @@ export function UploadPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: string; type: 'success' | 'error'; message: string }>>([]);
 
-  const addNotification = (type: 'success' | 'error', message: string) => {
+  const addNotification = useCallback((type: 'success' | 'error', message: string) => {
     const id = Date.now().toString();
     setNotifications(prev => [...prev, { id, type, message }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
-  };
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -45,22 +50,92 @@ export function UploadPage() {
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
+  const uploadAndProcessFile = useCallback(async (fileId: string, file: File) => {
+    try {
+      // Step 1: Upload file to Supabase
+      setUploadedFiles(prev => prev.map(f =>
+        f.id === fileId ? { ...f, status: 'uploading', progress: 25 } : f
+      ));
 
-    const files = Array.from(e.dataTransfer.files);
-    handleFiles(files);
-  }, []);
+      const formData = new FormData();
+      formData.append('file', file);
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      handleFiles(files);
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const uploadData = await uploadResponse.json();
+
+      setUploadedFiles(prev => prev.map(f =>
+        f.id === fileId
+          ? {
+              ...f,
+              status: 'processing',
+              progress: 50,
+              receiptId: uploadData.data.receiptId,
+              publicUrl: uploadData.data.publicUrl
+            }
+          : f
+      ));
+
+      // Step 2: Process with AI
+      const processResponse = await fetch('/api/process-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          receiptId: uploadData.data.receiptId,
+          imageUrl: uploadData.data.publicUrl,
+        }),
+      });
+
+      if (!processResponse.ok) {
+        const errorData = await processResponse.json();
+        throw new Error(errorData.error || 'AI processing failed');
+      }
+
+      const processData = await processResponse.json();
+
+      // Step 3: Update with results
+      setUploadedFiles(prev => prev.map(f =>
+        f.id === fileId
+          ? {
+              ...f,
+              status: 'completed',
+              progress: 100,
+              extractedData: processData.data.extractedData,
+              expenseId: processData.data.expense.id
+            }
+          : f
+      ));
+
+      addNotification('success', 'Receipt processed successfully!');
+
+    } catch (error) {
+      console.error('Upload/processing error:', error);
+
+      setUploadedFiles(prev => prev.map(f =>
+        f.id === fileId
+          ? {
+              ...f,
+              status: 'error',
+              progress: 0
+            }
+          : f
+      ));
+
+      addNotification('error', error instanceof Error ? error.message : 'Failed to process receipt');
     }
-  };
+  }, [addNotification]);
 
-  const handleFiles = (files: File[]) => {
+  const handleFiles = useCallback((files: File[]) => {
     const validFiles = files.filter(file => {
       const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
       return validTypes.includes(file.type);
@@ -84,75 +159,24 @@ export function UploadPage() {
 
       setUploadedFiles(prev => [...prev, uploadedFile]);
 
-      // Simulate upload and processing
-      simulateProcessing(id);
+      // Upload file to Supabase and process with AI
+      uploadAndProcessFile(id, file);
     });
-  };
+  }, [addNotification, uploadAndProcessFile]);
 
-  const simulateProcessing = (fileId: string) => {
-    // Simulate upload progress
-    const uploadInterval = setInterval(() => {
-      setUploadedFiles(prev => prev.map(file => {
-        if (file.id === fileId && file.progress < 100) {
-          const newProgress = Math.min(file.progress + 10, 100);
-          if (newProgress === 100) {
-            clearInterval(uploadInterval);
-            // Start processing
-            setTimeout(() => {
-              setUploadedFiles(prev => prev.map(f =>
-                f.id === fileId
-                  ? {
-                      ...f,
-                      status: 'processing',
-                      progress: 0
-                    }
-                  : f
-              ));
-              simulateAIProcessing(fileId);
-            }, 500);
-          }
-          return { ...file, progress: newProgress };
-        }
-        return file;
-      }));
-    }, 200);
-  };
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
 
-  const simulateAIProcessing = (fileId: string) => {
-    // Simulate AI processing
-    const processingInterval = setInterval(() => {
-      setUploadedFiles(prev => prev.map(file => {
-        if (file.id === fileId && file.progress < 100) {
-          const newProgress = Math.min(file.progress + 15, 100);
-          if (newProgress === 100) {
-            clearInterval(processingInterval);
-            // Complete processing with mock data
-            const mockData = {
-              amount: Math.round((Math.random() * 200 + 10) * 100) / 100,
-              vendor: ['Starbucks', 'Uber', 'Amazon', 'Shell', 'Target', 'Walmart'][Math.floor(Math.random() * 6)],
-              date: new Date().toISOString().split('T')[0],
-              category: ['Food & Dining', 'Transportation', 'Office Supplies', 'Utilities'][Math.floor(Math.random() * 4)],
-              confidence: Math.round((Math.random() * 0.3 + 0.7) * 100) / 100,
-            };
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+  }, [handleFiles]);
 
-            setUploadedFiles(prev => prev.map(f =>
-              f.id === fileId
-                ? {
-                    ...f,
-                    status: 'completed',
-                    progress: 100,
-                    extractedData: mockData
-                  }
-                : f
-            ));
-
-            addNotification('success', 'Receipt processed successfully!');
-          }
-          return { ...file, progress: newProgress };
-        }
-        return file;
-      }));
-    }, 300);
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      handleFiles(files);
+    }
   };
 
   const removeFile = (fileId: string) => {
@@ -167,6 +191,19 @@ export function UploadPage() {
     }
   };
 
+  const reviewReceipt = (file: UploadedFile) => {
+    if (file.extractedData && file.expenseId) {
+      // For now, show the extracted data in a notification
+      // In a real app, this would navigate to a detailed review page
+      const data = file.extractedData;
+      const message = `Review: ${data.store} - $${data.total} on ${data.date} (${data.items.length} items)`;
+      addNotification('success', message);
+
+      // You could also navigate to a review page here:
+      // router.push(`/review/${file.expenseId}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -178,7 +215,7 @@ export function UploadPage() {
       {/* Upload Area */}
       <Card className="p-8">
         <div
-          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer ${
             isDragOver
               ? 'border-blue-500 bg-blue-50'
               : 'border-gray-300 hover:border-gray-400'
@@ -186,6 +223,7 @@ export function UploadPage() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onClick={() => document.getElementById('file-upload')?.click()}
         >
           <div className="space-y-4">
             <div className="text-6xl">📤</div>
@@ -206,16 +244,16 @@ export function UploadPage() {
                 className="hidden"
                 id="file-upload"
               />
-              <label htmlFor="file-upload">
-                <Button
-                  themeColor="primary"
-                  className="cursor-pointer"
-                  as="span"
-                >
-                  Choose Files
-                </Button>
-              </label>
-              <Button fillMode="outline">
+              <Button
+                themeColor="primary"
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
+                Choose Files
+              </Button>
+              <Button
+                fillMode="outline"
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
                 Take Photo
               </Button>
             </div>
@@ -262,7 +300,7 @@ export function UploadPage() {
 
                   {/* File Info */}
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 relative">
                       <h4 className="font-medium text-gray-900">{file.file.name}</h4>
                       <Badge
                         themeColor={
@@ -295,16 +333,16 @@ export function UploadPage() {
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center space-x-4 text-sm">
                           <span className="text-green-600 font-medium">
-                            ${file.extractedData.amount}
+                            ${file.extractedData.total}
                           </span>
                           <span className="text-gray-600">
-                            {file.extractedData.vendor}
+                            {file.extractedData.store}
                           </span>
                           <span className="text-gray-500">
-                            {file.extractedData.category}
+                            {file.extractedData.date}
                           </span>
                           <span className="text-blue-600">
-                            {Math.round(file.extractedData.confidence * 100)}% confidence
+                            {file.extractedData.items.length} items
                           </span>
                         </div>
                       </div>
@@ -317,6 +355,7 @@ export function UploadPage() {
                       <Button
                         fillMode="outline"
                         size="small"
+                        onClick={() => reviewReceipt(file)}
                       >
                         Review
                       </Button>
@@ -341,7 +380,6 @@ export function UploadPage() {
         {notifications.map((notification) => (
           <Notification
             key={notification.id}
-            type={notification.type}
             closable
             onClose={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
           >
