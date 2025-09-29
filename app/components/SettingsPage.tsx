@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@progress/kendo-react-layout';
 import { Button } from '@progress/kendo-react-buttons';
 import { TextBox, NumericTextBox } from '@progress/kendo-react-inputs';
@@ -8,6 +8,16 @@ import { DropDownList } from '@progress/kendo-react-dropdowns';
 import { Switch } from '@progress/kendo-react-inputs';
 import { Notification } from '@progress/kendo-react-notification';
 import { Dialog } from '@progress/kendo-react-dialogs';
+import {
+  getCategories,
+  createCategory as apiCreateCategory,
+  deleteCategory as apiDeleteCategory,
+  updateCategory as apiUpdateCategory,
+  getUserPreferences,
+  updateUserPreferences,
+  type Category as DbCategory,
+  type UserPreferences as DbUserPreferences,
+} from '@/app/lib/database';
 
 interface Category {
   id: string;
@@ -25,17 +35,8 @@ interface Settings {
   theme: 'light' | 'dark' | 'auto';
 }
 
-// Mock data
-const initialCategories: Category[] = [
-  { id: '1', name: 'Food & Dining', color: '#ff6b6b', budget: 600 },
-  { id: '2', name: 'Transportation', color: '#4ecdc4', budget: 300 },
-  { id: '3', name: 'Office Supplies', color: '#45b7d1', budget: 200 },
-  { id: '4', name: 'Utilities', color: '#96ceb4', budget: 400 },
-  { id: '5', name: 'Entertainment', color: '#feca57', budget: 150 },
-  { id: '6', name: 'Healthcare', color: '#ff9ff3', budget: 100 },
-  { id: '7', name: 'Travel', color: '#54a0ff', budget: 500 },
-  { id: '8', name: 'Other', color: '#5f27cd', budget: 100 },
-];
+// Loaded from API
+const initialCategories: Category[] = [];
 
 const colorOptions = [
   '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57',
@@ -58,6 +59,8 @@ export function SettingsPage() {
     dateFormat: 'MM/DD/YYYY',
     theme: 'light'
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const addNotification = (type: 'success' | 'error', message: string) => {
     const id = Date.now().toString();
@@ -67,40 +70,117 @@ export function SettingsPage() {
     }, 5000);
   };
 
-  const handleAddCategory = () => {
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const [cats, prefs] = await Promise.all([
+          getCategories(),
+          getUserPreferences(),
+        ]);
+
+        const mappedCats: Category[] = (cats || []).map((c: DbCategory) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          budget: typeof c.budget === 'number' ? c.budget : c.budget ? Number(c.budget) : undefined,
+        }));
+        setCategories(mappedCats);
+
+        if (prefs) {
+          const mappedSettings: Settings = {
+            autoCategorize: prefs.auto_categorize,
+            emailNotifications: prefs.email_notifications,
+            budgetAlerts: prefs.budget_alerts,
+            currency: (prefs.currency as Settings['currency']) ?? 'USD',
+            dateFormat: (prefs.date_format as Settings['dateFormat']) ?? 'MM/DD/YYYY',
+            theme: (prefs.theme as Settings['theme']) ?? 'light',
+          };
+          setSettings(mappedSettings);
+        }
+      } catch (err) {
+        console.error(err);
+        addNotification('error', 'Failed to load settings');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const handleAddCategory = async () => {
     if (!newCategory.name.trim()) {
       addNotification('error', 'Category name is required');
       return;
     }
+    try {
+      const created = await apiCreateCategory({
+        name: newCategory.name,
+        color: newCategory.color,
+        budget: newCategory.budget || undefined,
+        created_at: undefined as unknown as string, // ignored by API typing at runtime
+        updated_at: undefined as unknown as string,
+        id: undefined as unknown as string,
+      } as unknown as Omit<DbCategory, 'id' | 'created_at' | 'updated_at'>);
 
-    const category: Category = {
-      id: Date.now().toString(),
-      name: newCategory.name,
-      color: newCategory.color,
-      budget: newCategory.budget || undefined
-    };
-
-    setCategories(prev => [...prev, category]);
-    setNewCategory({ name: '', color: '#ff6b6b', budget: 0 });
-    setShowAddCategory(false);
-    addNotification('success', 'Category added successfully');
+      setCategories(prev => [...prev, {
+        id: created.id,
+        name: created.name,
+        color: created.color,
+        budget: typeof created.budget === 'number' ? created.budget : created.budget ? Number(created.budget) : undefined,
+      }]);
+      setNewCategory({ name: '', color: '#ff6b6b', budget: 0 });
+      setShowAddCategory(false);
+      addNotification('success', 'Category added successfully');
+    } catch (err) {
+      console.error(err);
+      addNotification('error', 'Failed to add category');
+    }
   };
 
-  const handleDeleteCategory = (categoryId: string) => {
-    setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-    addNotification('success', 'Category deleted');
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      await apiDeleteCategory(categoryId);
+      setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+      addNotification('success', 'Category deleted');
+    } catch (err) {
+      console.error(err);
+      addNotification('error', 'Failed to delete category');
+    }
   };
 
-  const handleUpdateBudget = (categoryId: string, budget: number) => {
-    setCategories(prev => prev.map(cat =>
-      cat.id === categoryId ? { ...cat, budget } : cat
-    ));
-    addNotification('success', 'Budget updated');
+  const handleUpdateBudget = async (categoryId: string, budget: number) => {
+    try {
+      setCategories(prev => prev.map(cat =>
+        cat.id === categoryId ? { ...cat, budget } : cat
+      ));
+      await apiUpdateCategory(categoryId, { budget });
+      addNotification('success', 'Budget updated');
+    } catch (err) {
+      console.error(err);
+      addNotification('error', 'Failed to update budget');
+    }
   };
 
-  const handleSettingChange = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+  const handleSettingChange = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-    addNotification('success', 'Setting updated');
+    try {
+      setIsSavingSettings(true);
+      const updates: Partial<DbUserPreferences> = {};
+      if (key === 'autoCategorize') updates.auto_categorize = value as boolean;
+      if (key === 'emailNotifications') updates.email_notifications = value as boolean;
+      if (key === 'budgetAlerts') updates.budget_alerts = value as boolean;
+      if (key === 'currency') updates.currency = value as string;
+      if (key === 'dateFormat') updates.date_format = value as string;
+      if (key === 'theme') updates.theme = value as string;
+      await updateUserPreferences(updates);
+      addNotification('success', 'Setting updated');
+    } catch (err) {
+      console.error(err);
+      addNotification('error', 'Failed to update setting');
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   return (
@@ -125,6 +205,9 @@ export function SettingsPage() {
           </Button>
         </div>
 
+        {isLoading ? (
+          <div className="text-gray-600">Loading categories...</div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {categories.map((category) => (
             <div key={category.id} className="border rounded-lg p-4">
@@ -159,6 +242,7 @@ export function SettingsPage() {
             </div>
           ))}
         </div>
+        )}
       </Card>
 
       {/* Budget Settings */}
@@ -173,6 +257,7 @@ export function SettingsPage() {
             <Switch
               checked={settings.budgetAlerts}
               onChange={(e) => handleSettingChange('budgetAlerts', e.value as boolean)}
+              disabled={isSavingSettings}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -183,6 +268,7 @@ export function SettingsPage() {
             <Switch
               checked={settings.autoCategorize}
               onChange={(e) => handleSettingChange('autoCategorize', e.value as boolean)}
+              disabled={isSavingSettings}
             />
           </div>
         </div>
@@ -200,6 +286,7 @@ export function SettingsPage() {
             <Switch
               checked={settings.emailNotifications}
               onChange={(e) => handleSettingChange('emailNotifications', e.value as boolean)}
+              disabled={isSavingSettings}
             />
           </div>
         </div>
@@ -218,6 +305,7 @@ export function SettingsPage() {
               value={settings.currency}
               onChange={(e) => handleSettingChange('currency', e.value as Settings['currency'])}
               className="w-full"
+              disabled={isSavingSettings}
             />
           </div>
           <div>
@@ -229,6 +317,7 @@ export function SettingsPage() {
               value={settings.dateFormat}
               onChange={(e) => handleSettingChange('dateFormat', e.value as Settings['dateFormat'])}
               className="w-full"
+              disabled={isSavingSettings}
             />
           </div>
           <div>
@@ -240,6 +329,7 @@ export function SettingsPage() {
               value={settings.theme}
               onChange={(e) => handleSettingChange('theme', e.value as Settings['theme'])}
               className="w-full"
+              disabled={isSavingSettings}
             />
           </div>
         </div>

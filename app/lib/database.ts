@@ -262,9 +262,15 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
 }
 
 export async function createUserPreferences(preferences: Omit<UserPreferences, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<UserPreferences> {
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id;
+  if (!userId) {
+    throw new Error('Not authenticated');
+  }
+
   const { data, error } = await supabase
     .from('user_preferences')
-    .insert(preferences)
+    .insert({ ...preferences, user_id: userId })
     .select()
     .single();
 
@@ -277,9 +283,15 @@ export async function createUserPreferences(preferences: Omit<UserPreferences, '
 }
 
 export async function updateUserPreferences(updates: Partial<UserPreferences>): Promise<UserPreferences> {
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id;
+  if (!userId) {
+    throw new Error('Not authenticated');
+  }
+
   const { data, error } = await supabase
     .from('user_preferences')
-    .upsert(updates)
+    .upsert({ ...updates, user_id: userId }, { onConflict: 'user_id' })
     .select()
     .single();
 
