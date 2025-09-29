@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧾 Ezpense - Expense tracking made EZ
 
-## Getting Started
+An AI-powered expense manager with receipt scanning built with Next.js and KendoReact components.
 
-First, run the development server:
+## 🚀 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **📤 Receipt Upload**: Drag & drop interface for uploading receipt images
+- **🤖 AI Processing**: Automatic data extraction from receipts using AI
+- **✏️ Review & Edit**: Review and edit AI-extracted data before saving
+- **📊 Dashboard**: Visual analytics and spending insights
+- **💰 Expense Management**: Comprehensive expense tracking with filtering
+- **⚙️ Settings**: Customizable categories, budgets, and preferences
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠️ Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **UI Components**: KendoReact (10+ components used)
+- **Styling**: Tailwind CSS
+- **Database**: Supabase (with anonymous authentication)
+- **AI**: OpenAI API for receipt processing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🎯 KendoReact Components Used
 
-## Learn More
+- **Card**: Layout and content organization
+- **Button**: Action buttons throughout the app
+- **Grid**: Data display for expenses
+- **TextBox/NumericTextBox**: Form inputs
+- **DropDownList**: Category and filter selection
+- **DatePicker/DateRangePicker**: Date selection
+- **ProgressBar**: Upload progress and budget tracking
+- **Badge**: Status indicators
+- **Notification**: Success/error messages
+- **Dialog**: Modals and confirmations
+- **Switch**: Toggle settings
 
-To learn more about Next.js, take a look at the following resources:
+## 🏃‍♂️ Getting Started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+3. **Open your browser**:
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📱 Pages
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Dashboard** (`/`): Overview with analytics and quick actions
+- **Upload** (`/upload`): Drag & drop receipt upload with AI processing
+- **Review** (`/review`): Edit and confirm AI-extracted data
+- **Expenses** (`/expenses`): View and manage all expenses
+- **Settings** (`/settings`): Configure categories, budgets, and preferences
+
+## 🎨 Design Features
+
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Modern UI**: Clean, professional interface with KendoReact components
+- **Accessibility**: WCAG 2.1 AA compliant components
+- **Dark/Light Theme**: Theme switching support
+- **Real-time Updates**: Live progress indicators and notifications
+
+## 🔧 Configuration
+
+The app uses anonymous authentication with Supabase, so users can start using it immediately without registration.
+
+## 📊 Mock Data
+
+The application includes comprehensive mock data to demonstrate all features:
+- Sample receipts with AI-extracted data
+- Expense categories and budgets
+- Spending analytics and trends
+- User preferences and settings
+
+## 🚀 Deployment
+
+This project is ready for deployment on Vercel, Netlify, or any Next.js-compatible platform.
+
+## 📝 License
+
+This project is created for hackathon demonstration purposes.
