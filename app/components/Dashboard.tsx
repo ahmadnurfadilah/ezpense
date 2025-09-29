@@ -1,37 +1,82 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@progress/kendo-react-layout';
 import { Button } from '@progress/kendo-react-buttons';
 import { Badge } from '@progress/kendo-react-indicators';
 import { ProgressBar } from '@progress/kendo-react-progressbars';
 import { DropDownList } from '@progress/kendo-react-dropdowns';
-
-// Mock data for demonstration
-const mockExpenses = [
-  { category: 'Food & Dining', amount: 450, budget: 600, color: '#ff6b6b' },
-  { category: 'Transportation', amount: 200, budget: 300, color: '#4ecdc4' },
-  { category: 'Office Supplies', amount: 150, budget: 200, color: '#45b7d1' },
-  { category: 'Utilities', amount: 300, budget: 400, color: '#96ceb4' },
-  { category: 'Entertainment', amount: 100, budget: 150, color: '#feca57' },
-];
-
-const recentExpenses = [
-  { id: 1, vendor: 'Starbucks', amount: 12.50, category: 'Food & Dining', date: '2024-01-15', status: 'confirmed' },
-  { id: 2, vendor: 'Uber', amount: 25.00, category: 'Transportation', date: '2024-01-14', status: 'confirmed' },
-  { id: 3, vendor: 'Office Depot', amount: 45.99, category: 'Office Supplies', date: '2024-01-13', status: 'pending' },
-  { id: 4, vendor: 'Amazon', amount: 89.99, category: 'Office Supplies', date: '2024-01-12', status: 'confirmed' },
-  { id: 5, vendor: 'Shell Gas', amount: 65.00, category: 'Transportation', date: '2024-01-11', status: 'confirmed' },
-];
+import { Notification } from '@progress/kendo-react-notification';
+import { getExpenses, getCategories, type Expense, type Category } from '../lib/database';
+import { usePendingExpenses } from '../hooks/usePendingExpenses';
 
 export function Dashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Array<{ id: string; type: 'success' | 'error'; message: string }>>([]);
+  const { pendingCount } = usePendingExpenses();
 
-  const totalSpent = mockExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const totalBudget = mockExpenses.reduce((sum, expense) => sum + expense.budget, 0);
-  const pendingCount = recentExpenses.filter(expense => expense.status === 'pending').length;
+  const addNotification = useCallback((type: 'success' | 'error', message: string) => {
+    const id = Date.now().toString();
+    setNotifications(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [exp, cats] = await Promise.all([
+          getExpenses(),
+          getCategories().catch(() => [])
+        ]);
+        setExpenses(exp);
+        setCategories(cats);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        addNotification('error', 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [addNotification]);
+
+  const getCategoryName = (categoryId?: string) => {
+    if (!categoryId) return 'Uncategorized';
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name || 'Uncategorized';
+  };
+
+  // Aggregate totals
+  const totalSpent = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const categoryTotals = expenses.reduce<Record<string, number>>((acc, e) => {
+    const name = getCategoryName(e.category_id);
+    acc[name] = (acc[name] || 0) + (e.amount || 0);
+    return acc;
+  }, {});
+  const totalBudget = categories.reduce((sum, c) => sum + (c.budget || 0), 0);
 
   const periodOptions = ['This Week', 'This Month', 'Last Month', 'This Year'];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Loading dashboard...</p>
+        </div>
+        <Card className="p-12 text-center">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-600">Fetching your latest expenses and categories…</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -83,7 +128,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Receipts Processed</p>
-              <p className="text-2xl font-bold text-blue-600">{recentExpenses.length}</p>
+              <p className="text-2xl font-bold text-blue-600">{expenses.length}</p>
             </div>
             <div className="text-3xl">🧾</div>
           </div>
@@ -104,14 +149,16 @@ export function Dashboard() {
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Progress</h3>
         <div className="space-y-4">
-          {mockExpenses.map((expense) => {
-            const percentage = (expense.amount / expense.budget) * 100;
+          {categories.map((category) => {
+            const spent = categoryTotals[category.name] || 0;
+            const budget = category.budget || 0;
+            const percentage = budget > 0 ? (spent / budget) * 100 : 0;
             return (
-              <div key={expense.category} className="space-y-2">
+              <div key={category.id} className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">{expense.category}</span>
+                  <span className="text-sm font-medium text-gray-700">{category.name}</span>
                   <span className="text-sm text-gray-600">
-                    ${expense.amount.toFixed(2)} / ${expense.budget.toFixed(2)}
+                    ${spent.toFixed(2)} {budget ? `/ $${budget.toFixed(2)}` : ''}
                   </span>
                 </div>
                 <ProgressBar
@@ -134,7 +181,7 @@ export function Dashboard() {
           </Button>
         </div>
         <div className="space-y-3">
-          {recentExpenses.slice(0, 5).map((expense) => (
+          {expenses.slice(0, 5).map((expense) => (
             <div key={expense.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -144,15 +191,15 @@ export function Dashboard() {
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">{expense.vendor}</p>
-                  <p className="text-sm text-gray-600">{expense.category}</p>
+                  <p className="text-sm text-gray-600">{getCategoryName(expense.category_id)}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-semibold text-gray-900">${expense.amount.toFixed(2)}</p>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">{expense.date}</span>
+                  <span className="text-xs text-gray-500">{new Date(expense.date).toLocaleDateString()}</span>
                   <Badge
-                    themeColor={expense.status === 'confirmed' ? 'success' : 'warning'}
+                    themeColor={expense.status === 'confirmed' ? 'success' : expense.status === 'reviewed' ? 'info' : 'warning'}
                     size="small"
                   >
                     {expense.status}
@@ -169,18 +216,20 @@ export function Dashboard() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Spending by Category</h3>
           <div className="space-y-3">
-            {mockExpenses.map((expense) => {
-              const percentage = (expense.amount / totalSpent) * 100;
+            {Object.entries(categoryTotals).map(([name, amount]) => {
+              const percentage = totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
+              const category = categories.find(c => c.name === name);
+              const color = category?.color || '#e5e7eb';
               return (
-                <div key={expense.category} className="flex items-center space-x-3">
+                <div key={name} className="flex items-center space-x-3">
                   <div
                     className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: expense.color }}
+                    style={{ backgroundColor: color }}
                   />
                   <div className="flex-1">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">{expense.category}</span>
-                      <span>${expense.amount.toFixed(2)}</span>
+                      <span className="font-medium">{name}</span>
+                      <span>${amount.toFixed(2)}</span>
                     </div>
                     <ProgressBar
                       value={percentage}
@@ -223,6 +272,19 @@ export function Dashboard() {
             </Button>
           </div>
         </Card>
+      </div>
+
+      {/* Notifications */}
+      <div className="fixed top-4 right-4 space-y-2 z-50">
+        {notifications.map((notification) => (
+          <Notification
+            key={notification.id}
+            closable
+            onClose={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+          >
+            {notification.message}
+          </Notification>
+        ))}
       </div>
     </div>
   );

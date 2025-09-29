@@ -16,10 +16,13 @@ interface Category {
   budget?: number;
 }
 
-interface Budget {
-  category: string;
-  amount: number;
-  period: 'monthly' | 'weekly' | 'yearly';
+interface Settings {
+  autoCategorize: boolean;
+  emailNotifications: boolean;
+  budgetAlerts: boolean;
+  currency: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD';
+  dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD';
+  theme: 'light' | 'dark' | 'auto';
 }
 
 // Mock data
@@ -40,18 +43,14 @@ const colorOptions = [
   '#10ac84', '#ee5a24', '#0984e3', '#6c5ce7', '#a29bfe'
 ];
 
-const periodOptions = [
-  { text: 'Monthly', value: 'monthly' },
-  { text: 'Weekly', value: 'weekly' },
-  { text: 'Yearly', value: 'yearly' }
-];
+// removed unused periodOptions
 
 export function SettingsPage() {
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [newCategory, setNewCategory] = useState({ name: '', color: '#ff6b6b', budget: 0 });
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: string; type: 'success' | 'error'; message: string }>>([]);
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<Settings>({
     autoCategorize: true,
     emailNotifications: true,
     budgetAlerts: true,
@@ -99,7 +98,7 @@ export function SettingsPage() {
     addNotification('success', 'Budget updated');
   };
 
-  const handleSettingChange = (key: string, value: any) => {
+  const handleSettingChange = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     addNotification('success', 'Setting updated');
   };
@@ -151,7 +150,7 @@ export function SettingsPage() {
                 </label>
                 <NumericTextBox
                   value={category.budget || 0}
-                  onChange={(e) => handleUpdateBudget(category.id, e.target.value || 0)}
+                  onChange={(e) => handleUpdateBudget(category.id, (e.value ?? 0) as number)}
                   format="c2"
                   className="w-full"
                   placeholder="No budget set"
@@ -173,7 +172,7 @@ export function SettingsPage() {
             </div>
             <Switch
               checked={settings.budgetAlerts}
-              onChange={(e) => handleSettingChange('budgetAlerts', e.target.value)}
+              onChange={(e) => handleSettingChange('budgetAlerts', e.value as boolean)}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -183,7 +182,7 @@ export function SettingsPage() {
             </div>
             <Switch
               checked={settings.autoCategorize}
-              onChange={(e) => handleSettingChange('autoCategorize', e.target.value)}
+              onChange={(e) => handleSettingChange('autoCategorize', e.value as boolean)}
             />
           </div>
         </div>
@@ -200,7 +199,7 @@ export function SettingsPage() {
             </div>
             <Switch
               checked={settings.emailNotifications}
-              onChange={(e) => handleSettingChange('emailNotifications', e.target.value)}
+              onChange={(e) => handleSettingChange('emailNotifications', e.value as boolean)}
             />
           </div>
         </div>
@@ -217,7 +216,7 @@ export function SettingsPage() {
             <DropDownList
               data={['USD', 'EUR', 'GBP', 'CAD', 'AUD']}
               value={settings.currency}
-              onChange={(e) => handleSettingChange('currency', e.target.value)}
+              onChange={(e) => handleSettingChange('currency', e.value as Settings['currency'])}
               className="w-full"
             />
           </div>
@@ -228,7 +227,7 @@ export function SettingsPage() {
             <DropDownList
               data={['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']}
               value={settings.dateFormat}
-              onChange={(e) => handleSettingChange('dateFormat', e.target.value)}
+              onChange={(e) => handleSettingChange('dateFormat', e.value as Settings['dateFormat'])}
               className="w-full"
             />
           </div>
@@ -239,7 +238,7 @@ export function SettingsPage() {
             <DropDownList
               data={['light', 'dark', 'auto']}
               value={settings.theme}
-              onChange={(e) => handleSettingChange('theme', e.target.value)}
+              onChange={(e) => handleSettingChange('theme', e.value as Settings['theme'])}
               className="w-full"
             />
           </div>
@@ -290,10 +289,10 @@ export function SettingsPage() {
       </Card>
 
       {/* Add Category Dialog */}
+      {showAddCategory && (
       <Dialog
         title="Add New Category"
         onClose={() => setShowAddCategory(false)}
-        visible={showAddCategory}
         width={400}
       >
         <div className="p-4 space-y-4">
@@ -303,7 +302,7 @@ export function SettingsPage() {
             </label>
             <TextBox
               value={newCategory.name}
-              onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => setNewCategory(prev => ({ ...prev, name: String(e.value ?? '') }))}
               placeholder="Enter category name"
               className="w-full"
             />
@@ -331,7 +330,7 @@ export function SettingsPage() {
             </label>
             <NumericTextBox
               value={newCategory.budget}
-              onChange={(e) => setNewCategory(prev => ({ ...prev, budget: e.target.value || 0 }))}
+              onChange={(e) => setNewCategory(prev => ({ ...prev, budget: (e.value ?? 0) as number }))}
               format="c2"
               className="w-full"
               placeholder="No budget"
@@ -353,13 +352,13 @@ export function SettingsPage() {
           </div>
         </div>
       </Dialog>
+      )}
 
       {/* Notifications */}
       <div className="fixed top-4 right-4 space-y-2 z-50">
         {notifications.map((notification) => (
           <Notification
             key={notification.id}
-            type={notification.type}
             closable
             onClose={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
           >

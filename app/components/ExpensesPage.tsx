@@ -5,9 +5,11 @@ import Image from 'next/image';
 import { Card } from '@progress/kendo-react-layout';
 import { Button } from '@progress/kendo-react-buttons';
 import { Grid, GridColumn } from '@progress/kendo-react-grid';
+import type { GridRowClickEvent } from '@progress/kendo-react-grid';
 import { DropDownList } from '@progress/kendo-react-dropdowns';
-import { DateRangePicker } from '@progress/kendo-react-dateinputs';
+import type { DropDownListChangeEvent } from '@progress/kendo-react-dropdowns';
 import { TextBox } from '@progress/kendo-react-inputs';
+import type { TextBoxChangeEvent } from '@progress/kendo-react-inputs';
 import { Badge } from '@progress/kendo-react-indicators';
 import { Dialog } from '@progress/kendo-react-dialogs';
 import { Notification } from '@progress/kendo-react-notification';
@@ -74,6 +76,12 @@ export function ExpensesPage() {
     loadData();
   }, [addNotification]);
 
+  const getCategoryName = useCallback((categoryId?: string) => {
+    if (!categoryId) return 'Uncategorized';
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name || 'Uncategorized';
+  }, [categories]);
+
   // Filter expenses based on search and filters
   const applyFilters = useCallback(() => {
     let filtered = expenses;
@@ -97,33 +105,27 @@ export function ExpensesPage() {
     }
 
     setFilteredExpenses(filtered);
-  }, [expenses, selectedCategory, selectedStatus, searchTerm]);
+  }, [expenses, selectedCategory, selectedStatus, searchTerm, getCategoryName]);
 
   // Apply filters when dependencies change
   useEffect(() => {
     applyFilters();
   }, [applyFilters]);
 
-  const handleCategoryChange = (e: any) => {
-    const value = e.target.value;
-    const nextValue = typeof value === 'object' && value !== null ? value.value : value;
-    setSelectedCategory(nextValue);
+  const handleCategoryChange = (e: DropDownListChangeEvent) => {
+    const rawValue = e.value;
+    const nextValue = typeof rawValue === 'object' && rawValue !== null ? rawValue.value : rawValue;
+    setSelectedCategory(nextValue as string);
   };
 
-  const handleStatusChange = (e: any) => {
-    const value = e.target.value;
-    const nextValue = typeof value === 'object' && value !== null ? value.value : value;
-    setSelectedStatus(nextValue);
+  const handleStatusChange = (e: DropDownListChangeEvent) => {
+    const rawValue = e.value;
+    const nextValue = typeof rawValue === 'object' && rawValue !== null ? rawValue.value : rawValue;
+    setSelectedStatus(nextValue as string);
   };
 
-  const handleSearchChange = (e: any) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const getCategoryName = (categoryId?: string) => {
-    if (!categoryId) return 'Uncategorized';
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name || 'Uncategorized';
+  const handleSearchChange = (e: TextBoxChangeEvent) => {
+    setSearchTerm(String(e.value ?? ''));
   };
 
   const getCategoryOptions = () => {
@@ -162,8 +164,8 @@ export function ExpensesPage() {
     addNotification('success', 'Expenses exported to CSV successfully!');
   };
 
-  const handleRowClick = (e: any) => {
-    const expense = e.dataItem;
+  const handleRowClick = (e: GridRowClickEvent) => {
+    const expense = e.dataItem as Expense;
     setSelectedExpense(expense);
     setShowDetailDialog(true);
   };
@@ -184,6 +186,15 @@ export function ExpensesPage() {
   };
 
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+  const gridData = filteredExpenses.map(expense => ({
+    ...expense,
+    dateDisplay: new Date(expense.date).toLocaleDateString(),
+    amountDisplay: `$${expense.amount.toFixed(2)}`,
+    categoryDisplay: getCategoryName(expense.category_id),
+    statusDisplay: expense.status,
+    notesDisplay: expense.notes || '-'
+  }));
 
   if (loading) {
     return (
@@ -285,65 +296,21 @@ export function ExpensesPage() {
         </div>
 
         <Grid
-          data={filteredExpenses}
+          data={gridData}
           style={{ height: '600px' }}
           onRowClick={handleRowClick}
           className="cursor-pointer"
         >
-          <GridColumn
-            field="date"
-            title="Date"
-            width="120px"
-            cell={(props) => (
-              <td>
-                {new Date(props.dataItem.date).toLocaleDateString()}
-              </td>
-            )}
-          />
+          <GridColumn field="dateDisplay" title="Date" width="120px" />
           <GridColumn
             field="vendor"
             title="Vendor"
             width="150px"
           />
-          <GridColumn
-            field="amount"
-            title="Amount"
-            width="100px"
-            cell={(props) => (
-              <td className="font-semibold">
-                ${props.dataItem.amount.toFixed(2)}
-              </td>
-            )}
-          />
-          <GridColumn
-            field="category"
-            title="Category"
-            width="150px"
-            cell={(props) => (
-              <td>
-                {getCategoryName(props.dataItem.category_id)}
-              </td>
-            )}
-          />
-          <GridColumn
-            field="status"
-            title="Status"
-            width="120px"
-            cell={(props) => (
-              <td>
-                {getStatusBadge(props.dataItem.status)}
-              </td>
-            )}
-          />
-          <GridColumn
-            field="notes"
-            title="Notes"
-            cell={(props) => (
-              <td className="text-gray-600">
-                {props.dataItem.notes || '-'}
-              </td>
-            )}
-          />
+          <GridColumn field="amountDisplay" title="Amount" width="100px" />
+          <GridColumn field="categoryDisplay" title="Category" width="150px" />
+          <GridColumn field="statusDisplay" title="Status" width="120px" />
+          <GridColumn field="notesDisplay" title="Notes" />
         </Grid>
       </Card>
 
