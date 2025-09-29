@@ -79,66 +79,69 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Track your expenses and spending patterns</p>
-        </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
-          <DropDownList
-            data={periodOptions}
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="w-40"
-          />
-          <Button
-            themeColor="primary"
-            className="px-6"
-          >
-            📤 Upload Receipt
-          </Button>
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-8 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg">
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25) 0, transparent 40%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.18) 0, transparent 35%)' }} />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Dashboard</h1>
+            <p className="text-white/80 mt-1">Track your expenses and spending patterns</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <DropDownList
+              data={periodOptions}
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="w-44 rounded-lg"
+            />
+            <Button
+              themeColor="primary"
+              className="px-5 py-2 rounded-lg bg-white text-indigo-700 hover:bg-white/90 shadow-md"
+            >
+              📤 Upload Receipt
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Spent</p>
-              <p className="text-2xl font-bold text-gray-900">${totalSpent.toFixed(2)}</p>
+              <p className="text-3xl font-extrabold tracking-tight text-gray-900">${totalSpent.toFixed(2)}</p>
             </div>
             <div className="text-3xl">💰</div>
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Budget Remaining</p>
-              <p className="text-2xl font-bold text-green-600">${(totalBudget - totalSpent).toFixed(2)}</p>
+              <p className="text-3xl font-extrabold tracking-tight text-emerald-600">${(totalBudget - totalSpent).toFixed(2)}</p>
             </div>
             <div className="text-3xl">📊</div>
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Receipts Processed</p>
-              <p className="text-2xl font-bold text-blue-600">{expenses.length}</p>
+              <p className="text-3xl font-extrabold tracking-tight text-indigo-600">{expenses.length}</p>
             </div>
             <div className="text-3xl">🧾</div>
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Pending Review</p>
-              <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
+              <p className="text-3xl font-extrabold tracking-tight text-orange-600">{pendingCount}</p>
             </div>
             <div className="text-3xl">⏳</div>
           </div>
@@ -146,7 +149,7 @@ export function Dashboard() {
       </div>
 
       {/* Budget Progress */}
-      <Card className="p-6">
+      <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Progress</h3>
         <div className="space-y-4">
           {categories.map((category) => {
@@ -161,11 +164,9 @@ export function Dashboard() {
                     ${spent.toFixed(2)} {budget ? `/ $${budget.toFixed(2)}` : ''}
                   </span>
                 </div>
-                <ProgressBar
-                  value={percentage}
-                  max={100}
-                  className="h-2"
-                />
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: category.color || '#6366f1' }} />
+                </div>
               </div>
             );
           })}
@@ -173,18 +174,18 @@ export function Dashboard() {
       </Card>
 
       {/* Recent Expenses */}
-      <Card className="p-6">
+      <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Recent Expenses</h3>
-          <Button fillMode="outline" size="small">
+          <Button fillMode="outline" size="small" className="hover:shadow-sm">
             View All
           </Button>
         </div>
         <div className="space-y-3">
           {expenses.slice(0, 5).map((expense) => (
-            <div key={expense.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div key={expense.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shadow-inner">
                   <span className="text-blue-600 font-semibold">
                     {expense.vendor.charAt(0)}
                   </span>
@@ -195,7 +196,7 @@ export function Dashboard() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="font-semibold text-gray-900">${expense.amount.toFixed(2)}</p>
+                <p className="font-semibold text-gray-900 tabular-nums">${expense.amount.toFixed(2)}</p>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs text-gray-500">{new Date(expense.date).toLocaleDateString()}</span>
                   <Badge
@@ -213,7 +214,7 @@ export function Dashboard() {
 
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Spending by Category</h3>
           <div className="space-y-3">
             {Object.entries(categoryTotals).map(([name, amount]) => {
@@ -223,7 +224,7 @@ export function Dashboard() {
               return (
                 <div key={name} className="flex items-center space-x-3">
                   <div
-                    className="w-4 h-4 rounded-full"
+                    className="w-4 h-4 rounded-full ring-2 ring-white"
                     style={{ backgroundColor: color }}
                   />
                   <div className="flex-1">
@@ -231,11 +232,9 @@ export function Dashboard() {
                       <span className="font-medium">{name}</span>
                       <span>${amount.toFixed(2)}</span>
                     </div>
-                    <ProgressBar
-                      value={percentage}
-                      max={100}
-                      className="h-1 mt-1"
-                    />
+                    <div className="h-1 mt-1 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: color }} />
+                    </div>
                   </div>
                 </div>
               );
@@ -243,30 +242,30 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl border border-gray-200/70 shadow-sm bg-white/80 backdrop-blur">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-3">
             <Button
               themeColor="primary"
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl shadow-sm hover:shadow transition-shadow"
             >
               📤 Upload New Receipt
             </Button>
             <Button
               fillMode="outline"
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl hover:bg-gray-50"
             >
               ✏️ Review Pending ({pendingCount})
             </Button>
             <Button
               fillMode="outline"
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl hover:bg-gray-50"
             >
               📊 View Detailed Reports
             </Button>
             <Button
               fillMode="outline"
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl hover:bg-gray-50"
             >
               ⚙️ Manage Categories
             </Button>
